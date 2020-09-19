@@ -1,0 +1,16 @@
+
+VAR list = [1,2,3]
+LEKHO(list)
+
+APPEND(list, 4)
+LEKHO(list)
+
+POP(list, 2)
+LEKHO(list)
+
+EXTEND(list, [7,8,9])
+LEKHO(list)
+
+LEKHO(list/0)
+LEKHO(list/1)
+LEKHO(list/10)
