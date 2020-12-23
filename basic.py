@@ -97,9 +97,9 @@ class Position:
 # TOKENS
 #######################################
 
-TT_INT				= 'INT'
+TT_INT			= 'INT'
 TT_FLOAT    	= 'FLOAT'
-TT_STRING			= 'STRING'
+TT_STRING		= 'STRING'
 TT_IDENTIFIER	= 'IDENTIFIER'
 TT_KEYWORD		= 'KEYWORD'
 TT_PLUS     	= 'PLUS'
@@ -107,22 +107,27 @@ TT_MINUS    	= 'MINUS'
 TT_MUL      	= 'MUL'
 TT_DIV      	= 'DIV'
 TT_MOD			= 'MOD'
-TT_POW				= 'POW'
-TT_EQ					= 'EQ'
+TT_POW			= 'POW'
+TT_EQ			= 'EQ'
 TT_LPAREN   	= 'LPAREN'
 TT_RPAREN   	= 'RPAREN'
-TT_LSQUARE    = 'LSQUARE'
-TT_RSQUARE    = 'RSQUARE'
-TT_EE					= 'EE'
-TT_NE					= 'NE'
-TT_LT					= 'LT'
-TT_GT					= 'GT'
-TT_LTE				= 'LTE'
-TT_GTE				= 'GTE'
-TT_COMMA			= 'COMMA'
-TT_ARROW			= 'ARROW'
+TT_LSQUARE    	= 'LSQUARE'
+TT_RSQUARE    	= 'RSQUARE'
+TT_EE			= 'EE'
+TT_NE			= 'NE'
+TT_LT			= 'LT'
+TT_GT			= 'GT'
+TT_LTE			= 'LTE'
+TT_GTE			= 'GTE'
+TT_COMMA		= 'COMMA'
+TT_ARROW		= 'ARROW'
 TT_NEWLINE		= 'NEWLINE'
-TT_EOF				= 'EOF'
+TT_EOF			= 'EOF'
+TT_AND        	= 'B_AND'
+TT_OR         	= 'B_OR'
+TT_NOT        	= 'B_NOT'
+TT_LS         	= 'LS'
+TT_RS         	= 'RS'
 
 KEYWORDS = [
   'VAR',
@@ -213,6 +218,21 @@ class Lexer:
         self.advance()
       elif self.current_char == '^':
         tokens.append(Token(TT_POW, pos_start=self.pos))
+        self.advance()
+      elif self.current_char == '&':
+        tokens.append(Token(TT_AND, pos_start=self.pos))
+        self.advance()
+      elif self.current_char == '|':
+        tokens.append(Token(TT_OR, pos_start=self.pos))
+        self.advance()
+      elif self.current_char == '~':
+        tokens.append(Token(TT_NOT, pos_start=self.pos))
+        self.advance()
+      elif self.current_char == '}':
+        tokens.append(Token(TT_RS, pos_start=self.pos))
+        self.advance()
+      elif self.current_char == '{':
+        tokens.append(Token(TT_LS, pos_start=self.pos))
         self.advance()
       elif self.current_char == '(':
         tokens.append(Token(TT_LPAREN, pos_start=self.pos))
@@ -710,7 +730,7 @@ class Parser:
     return res.success(node)
 
   def arith_expr(self):
-    return self.bin_op(self.term, (TT_PLUS, TT_MINUS, TT_MOD))
+    return self.bin_op(self.term, (TT_PLUS, TT_MINUS, TT_MOD, TT_AND, TT_OR, TT_NOT, TT_LS, TT_RS))
 
   def term(self):
     return self.bin_op(self.factor, (TT_MUL, TT_DIV))
@@ -719,7 +739,7 @@ class Parser:
     res = ParseResult()
     tok = self.current_tok
 
-    if tok.type in (TT_PLUS, TT_MINUS, TT_MOD):
+    if tok.type in (TT_PLUS, TT_MINUS, TT_MOD, TT_AND, TT_OR, TT_NOT, TT_LS, TT_RS):
       res.register_advancement()
       self.advance()
       factor = res.register(self.factor())
@@ -1345,6 +1365,21 @@ class Value:
   def powed_by(self, other):
     return None, self.illegal_operation(other)
 
+  def and_by(self, other):
+    return None, self.illegal_operation(other)
+
+  def or_by(self, other):
+    return None, self.illegal_operation(other)
+
+  def xor_by(self, other):
+    return None, self.illegal_operation(other)
+
+  def ls_by(self, other):
+    return None, self.illegal_operation(other)
+
+  def rs_by(self, other):
+    return None, self.illegal_operation(other)
+
   def get_comparison_eq(self, other):
     return None, self.illegal_operation(other)
 
@@ -1380,6 +1415,9 @@ class Value:
 
   def is_true(self):
     return False
+
+  def count_length(self):
+    return 'Enter a valid String'
 
   def illegal_operation(self, other=None):
     if not other: other = self
@@ -1436,6 +1474,36 @@ class Number(Value):
       return Number(self.value ** other.value).set_context(self.context), None
     else:
       return None, Value.illegal_operation(self, other)
+
+  def and_by(self, other):
+    if isinstance(other, Number):
+      return Number(self.value & other.value).set_context(self.context), None
+    else:
+      return None, Value.illegal_operation(self, other)
+
+  def or_by(self, other):
+    if isinstance(other, Number):
+      return Number(self.value | other.value).set_context(self.context), None
+    else:
+      return None, Value.illegal_operation(self, other) 
+
+  def xor_by(self, other):
+    if isinstance(other, Number):
+      return Number(self.value ^ other.value).set_context(self.context), None
+    else:
+      return None, Value.illegal_operation(self, other) 
+
+  def ls_by(self, other):
+    if isinstance(other, Number):
+      return Number(self.value << other.value).set_context(self.context), None
+    else:
+      return None, Value.illegal_operation(self, other) 
+
+  def rs_by(self, other):
+    if isinstance(other, Number):
+      return Number(self.value >> other.value).set_context(self.context), None
+    else:
+      return None, Value.illegal_operation(self, other) 
 
   def get_comparison_eq(self, other):
     if isinstance(other, Number):
@@ -1503,7 +1571,7 @@ class Number(Value):
   def __repr__(self):
     return str(self.value)
 
-Number.null = Number(0)
+Number.null = Number("\n-----Your code has run successfully-----")
 Number.false = Number(0)
 Number.true = Number(1)
 Number.math_PI = Number(math.pi)
@@ -1519,14 +1587,45 @@ class String(Value):
     else:
       return None, Value.illegal_operation(self, other)
 
+  def subbed_by(self, other):
+    if isinstance(other, String):
+      new_string = self.copy()
+      try:
+        new_string.value.pop(other.value)
+        return String(new_string), None
+      except:
+        return None, RTError(
+          self.pos_start, self.pos_end,
+          'Element at this index could not be removed from String because index is out of bounds',
+          self.context
+        )
+    else:
+      return None, Value.illegal_operation(self, other)
+
   def multed_by(self, other):
     if isinstance(other, Number):
       return String(self.value * other.value).set_context(self.context), None
     else:
       return None, Value.illegal_operation(self, other)
 
+  def dived_by(self, other):
+    if isinstance(other, Number):
+      try:
+        return String(self.value[other.value]), None
+      except:
+        return None, RTError(
+          self.pos_start, self.pos_end,
+          'Element at this index could not be retrieved from string because index is out of bounds',
+          self.context
+        )
+    else:
+      return None, Value.illegal_operation(self, other)
+
   def is_true(self):
     return len(self.value) > 0
+
+  def count_length(self):
+    return len(self.value), None
 
   def copy(self):
     copy = String(self.value)
@@ -1704,9 +1803,14 @@ class BuiltInFunction(BaseFunction):
   #####################################
 
   def execute_print(self, exec_ctx):
-    print(str(exec_ctx.symbol_table.get('value')))
+    print(str(exec_ctx.symbol_table.get('value')), end="")
     return RTResult().success(Number.null)
   execute_print.arg_names = ['value']
+
+  def execute_print_ln(self, exec_ctx):
+    print(str(exec_ctx.symbol_table.get('value')))
+    return RTResult().success(Number.null)
+  execute_print_ln.arg_names = ['value']
   
   def execute_print_ret(self, exec_ctx):
     return RTResult().success(String(str(exec_ctx.symbol_table.get('value'))))
@@ -1832,6 +1936,19 @@ class BuiltInFunction(BaseFunction):
     return RTResult().success(Number(len(list_.elements)))
   execute_len.arg_names = ["list"]
 
+  def execute_length(self, exec_ctx):
+    string_ = exec_ctx.symbol_table.get("string")
+
+    if not isinstance(string_, String):
+      return RTResult().failure(RTError(
+        self.pos_start, self.pos_end,
+        "Argument must be string",
+        exec_ctx
+      ))
+
+    return RTResult().success(Number(len(string_.value)))
+  execute_length.arg_names = ["string"]
+
   def execute_run(self, exec_ctx):
     fn = exec_ctx.symbol_table.get("fn")
 
@@ -1868,6 +1985,7 @@ class BuiltInFunction(BaseFunction):
   execute_run.arg_names = ["fn"]
 
 BuiltInFunction.print       = BuiltInFunction("print")
+BuiltInFunction.print_ln    = BuiltInFunction("print_ln")
 BuiltInFunction.print_ret   = BuiltInFunction("print_ret")
 BuiltInFunction.input       = BuiltInFunction("input")
 BuiltInFunction.input_int   = BuiltInFunction("input_int")
@@ -1879,8 +1997,9 @@ BuiltInFunction.is_function = BuiltInFunction("is_function")
 BuiltInFunction.append      = BuiltInFunction("append")
 BuiltInFunction.pop         = BuiltInFunction("pop")
 BuiltInFunction.extend      = BuiltInFunction("extend")
-BuiltInFunction.len					= BuiltInFunction("len")
-BuiltInFunction.run					= BuiltInFunction("run")
+BuiltInFunction.len			= BuiltInFunction("len")
+BuiltInFunction.length		= BuiltInFunction("length")
+BuiltInFunction.run			= BuiltInFunction("run")
 
 #######################################
 # CONTEXT
@@ -1994,6 +2113,16 @@ class Interpreter:
       result, error = left.moded_by(right)
     elif node.op_tok.type == TT_POW:
       result, error = left.powed_by(right)
+    elif node.op_tok.type == TT_AND:
+      result, error = left.and_by(right)
+    elif node.op_tok.type == TT_OR:
+      result, error = left.or_by(right)
+    elif node.op_tok.type == TT_NOT:
+      result, error = left.xor_by(right)
+    elif node.op_tok.type == TT_LS:
+      result, error = left.ls_by(right)
+    elif node.op_tok.type == TT_RS:
+      result, error = left.rs_by(right)
     elif node.op_tok.type == TT_EE:
       result, error = left.get_comparison_eq(right)
     elif node.op_tok.type == TT_NE:
@@ -2180,6 +2309,7 @@ global_symbol_table.set("FALSE", Number.false)
 global_symbol_table.set("TRUE", Number.true)
 global_symbol_table.set("MATH_PI", Number.math_PI)
 global_symbol_table.set("LEKHO", BuiltInFunction.print)
+global_symbol_table.set("LIKHI", BuiltInFunction.print_ln)
 global_symbol_table.set("PRINT_RET", BuiltInFunction.print_ret)
 global_symbol_table.set("INPUT", BuiltInFunction.input)
 global_symbol_table.set("INPUT_INT", BuiltInFunction.input_int)
@@ -2193,6 +2323,7 @@ global_symbol_table.set("APPEND", BuiltInFunction.append)
 global_symbol_table.set("POP", BuiltInFunction.pop)
 global_symbol_table.set("EXTEND", BuiltInFunction.extend)
 global_symbol_table.set("LEN", BuiltInFunction.len)
+global_symbol_table.set("LENGTH", BuiltInFunction.length)
 global_symbol_table.set("RUN", BuiltInFunction.run)
 
 def run(fn, text):
